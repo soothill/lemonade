@@ -7493,11 +7493,20 @@ optgroup {
 
 /* Model list items */
 .model-list-item {
+  --model-list-assembly-width: 98px;
+  --model-list-plate-width: 82px;
+  --model-list-plate-height: 30px;
+  --model-list-plate-y: 1px;
+  --model-list-notch: 9px;
+  --model-list-rule-top-offset: 15px;
+  --model-list-frame: var(--border-strong);
+  --model-list-plate-fill: color-mix(in srgb, var(--surface-base) 18%, transparent);
+  position: relative;
   min-height: 54px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 82px auto auto;
+  grid-template-columns: minmax(0, 1fr) var(--model-list-assembly-width);
   align-items: center;
-  column-gap: 10px;
+  column-gap: 8px;
   padding: var(--space-2) var(--space-2);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -7505,10 +7514,36 @@ optgroup {
   user-select: none;
 }
 
+/* One uninterrupted rule joins model and backend. It runs across the plate
+   itself and stops one pixel before the inset diagonal/status corner. */
+.model-list-item--has-backend::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: calc(50% - var(--model-list-rule-top-offset));
+  left: calc(var(--space-2) + 6px);
+  right: calc(
+    var(--space-2) + var(--model-list-assembly-width)
+    - var(--model-list-plate-width) + var(--model-list-notch)
+  );
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--model-list-frame) 28%, transparent) 24%,
+    color-mix(in srgb, var(--model-list-frame) 72%, transparent) 72%,
+    var(--model-list-frame) 100%
+  );
+  opacity: 0.78;
+}
+
 .model-list-item:hover { background: var(--surface-1); }
 .model-list-item:focus-visible { outline: 2px solid var(--accent-focus); outline-offset: 0; }
 
 .model-list-item--selected {
+  --model-list-frame: color-mix(in srgb, var(--accent-fg) 38%, var(--border-strong));
+  --model-list-plate-fill: color-mix(in srgb, var(--surface-base) 36%, transparent);
   background: color-mix(in srgb, var(--accent-fg) 12%, transparent);
   border-color: color-mix(in srgb, var(--accent-fg) 30%, transparent);
 }
@@ -7517,26 +7552,65 @@ optgroup {
   background: color-mix(in srgb, var(--accent-fg) 18%, transparent);
 }
 
-.model-list-item__backend {
-  --model-backend-notch: 9px;
+.model-list-item__backend-cluster {
   position: relative;
+  z-index: 1;
   grid-column: 2;
-  width: 82px;
-  min-width: 82px;
-  height: 30px;
+  width: var(--model-list-assembly-width);
+  min-width: var(--model-list-assembly-width);
+  height: 34px;
+  pointer-events: none;
+}
+
+/* The missing-download corner is inset by one pixel at both ends. Drawing a
+   scaled background strip instead of a rotated border avoids the one-pixel
+   cap that previously protruded above the shared top rule. The remaining
+   8-by-8px run stays exactly 45 degrees and meets the shortened right frame. */
+.model-list-item__backend-cluster--notched::after {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  inset-block-start: calc(var(--model-list-plate-y) + 1px);
+  inset-inline-start: calc(
+    var(--model-list-plate-width) - var(--model-list-notch) + 1px
+  );
+  width: 11.314px;
+  height: 1px;
+  background: var(--model-list-frame);
+  transform: rotate(45deg) scaleY(0.45);
+  transform-origin: left top;
+  pointer-events: none;
+}
+
+.model-list-item__backend {
+  position: absolute;
+  inset-block-start: var(--model-list-plate-y);
+  inset-inline-start: 0;
+  width: var(--model-list-plate-width);
+  min-width: var(--model-list-plate-width);
+  height: var(--model-list-plate-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0 7px 0 9px;
   color: var(--text-secondary);
-  background: transparent;
+  /* Keep the original cut-corner geometry for every state. When ready, the
+     diagonal disappears and the inset status dot occupies that same corner. */
   clip-path: polygon(
     0 0,
-    calc(100% - var(--model-backend-notch)) 0,
-    100% var(--model-backend-notch),
+    calc(100% - var(--model-list-notch)) 0,
+    100% var(--model-list-notch),
     100% 100%,
     0 100%
   );
+  background:
+    linear-gradient(var(--model-list-frame), var(--model-list-frame)) right bottom /
+      1px calc(100% - var(--model-list-notch)) no-repeat,
+    linear-gradient(var(--model-list-frame), var(--model-list-frame)) bottom left /
+      100% 1px no-repeat,
+    /* Deliberately no thin left frame: the backend-color bar is the open
+       plate's only left-hand anchor. */
+    var(--model-list-plate-fill);
   font-size: 9px;
   font-weight: var(--weight-bold);
   letter-spacing: 0.055em;
@@ -7544,13 +7618,17 @@ optgroup {
   text-align: center;
   text-transform: uppercase;
   white-space: nowrap;
+  pointer-events: none;
 }
 
+/* Backend color remains the open plate's restrained identity stripe. It is
+   extended by one pixel at both ends while preserving a deliberate gap to the
+   shared top rule and the bottom frame. */
 .model-list-item__backend::before {
   content: '';
   position: absolute;
   z-index: 1;
-  inset-block: 5px;
+  inset-block: 4px;
   inset-inline-start: 0;
   width: 2px;
   border-radius: var(--radius-pill);
@@ -7558,36 +7636,19 @@ optgroup {
   box-shadow: 0 0 7px color-mix(in srgb, var(--list-backend-color, var(--text-tertiary)) 28%, transparent);
 }
 
-.model-list-item__backend::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  pointer-events: none;
-  background: var(--border-strong);
-  clip-path: inherit;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
 .model-list-item--selected .model-list-item__backend {
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--surface-base) 28%, transparent);
 }
 
 .model-list-item__body {
+  position: relative;
+  z-index: 1;
   grid-column: 1;
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  transform: translateY(2px);
 }
 
 .model-list-item__name {
@@ -7607,35 +7668,113 @@ optgroup {
   color: var(--text-tertiary);
 }
 
+/* The 7px dot is entirely inside the 82x30 plate bounds: it touches the top and
+   right edges but never protrudes. The top/right frame segments keep the same
+   9px clearance used by the original 45-degree corner. */
 .model-list-item__status {
-  grid-column: 3;
-  flex-shrink: 0;
+  position: absolute;
+  z-index: 4;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.model-list-item__status--corner {
+  inset-block-start: var(--model-list-plate-y);
+  inset-inline-start: calc(var(--model-list-plate-width) - 7px);
+  width: 7px;
+  height: 7px;
+  pointer-events: auto;
 }
 
 .model-list-item__dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface-base) 52%, transparent);
 }
 
-.model-list-item__dot--ready { background: var(--status-ok); }
+.model-list-item__dot--ready,
+.model-list-item__dot--running {
+  background: var(--status-ok);
+}
+
+.model-list-item__dot--running {
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.model-list-item__dot--attention {
+  background: var(--status-warning);
+}
+
+.model-list-item__dot--unknown {
+  background: var(--text-disabled);
+}
 
 .model-list-item__pct {
-  font-size: var(--type-overline-size);
+  position: absolute;
+  z-index: 4;
+  inset-block-start: -8px;
+  inset-inline-end: 17px;
+  min-width: 28px;
+  padding: 1px 4px;
+  border: 1px solid color-mix(in srgb, var(--accent-fg) 28%, transparent);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
   color: var(--accent-fg);
+  font-size: var(--type-overline-size);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: center;
+  pointer-events: none;
 }
 
-/* Pin / favorite affordance — compact, revealed on hover/selection or when pinned */
+/* The sideways pin docks into the backend plate. Its 21px outer geometry is
+   exactly the height of the shortened right frame segment
+   (30px plate - 9px cut corner), so both edges begin and end on the same pixels.
+   The highlight starts immediately after the frame and omits its left border,
+   avoiding a doubled seam at the attachment. */
 .model-list-item__pin {
-  grid-column: 4;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  flex-shrink: 0;
+  position: absolute;
+  z-index: 5;
+  inset-block-start: calc(var(--model-list-plate-y) + var(--model-list-notch));
+  inset-inline-end: 0;
+  width: 21px;
+  height: 21px;
+  min-width: 21px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0 9px 9px 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  line-height: 1;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  pointer-events: auto;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+.model-list-item__pin::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset-block: 0;
+  inset-inline-start: 5px;
+  inset-inline-end: 0;
+  border: 1px solid transparent;
+  border-inline-start: 0;
+  border-radius: 0 10px 10px 0;
+  background: transparent;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.model-list-item__pin svg {
+  position: relative;
+  z-index: 1;
+  transform: translateX(-1px) rotate(90deg);
+  transform-origin: center;
 }
 
 .model-list-item:hover .model-list-item__pin,
@@ -7645,8 +7784,59 @@ optgroup {
   opacity: 1;
 }
 
+.model-list-item__pin:hover,
 .model-list-item__pin--active {
-  opacity: 1;
+  color: var(--accent-fg);
+  border-color: transparent;
+  background: transparent;
+}
+
+.model-list-item__pin:hover::before,
+.model-list-item__pin--active::before {
+  border-color: color-mix(in srgb, var(--accent-fg) 42%, transparent);
+  border-inline-start-color: transparent;
+  background: color-mix(in srgb, var(--accent-fg) 12%, var(--surface-base));
+  box-shadow: 0 0 7px color-mix(in srgb, var(--accent-fg) 18%, transparent);
+}
+
+/* Defensive fallback for a server row without a recipe/backend plate. */
+.model-list-item__pin--standalone {
+  position: relative;
+  grid-column: 2;
+  justify-self: end;
+  inset: auto;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  pointer-events: auto;
+}
+
+.model-list-item__pin--standalone::before { display: none; }
+.model-list-item__pin--standalone svg { transform: none; }
+
+/* Touch devices have no hover reveal. Keep the compact pin visible enough to
+   discover without making it compete with the backend label. */
+@media (hover: none), (pointer: coarse) {
+  .model-list-item__pin { opacity: 0.72; }
+  .model-list-item__pin--active { opacity: 1; }
+}
+
+@media (max-width: 520px) {
+  .model-list-item {
+    column-gap: 6px;
+    padding-inline: 7px;
+  }
+
+  .model-list-item--has-backend::before {
+    left: 12px;
+    right: calc(
+      7px + var(--model-list-assembly-width)
+      - var(--model-list-plate-width) + var(--model-list-notch)
+    );
+  }
 }
 
 .model-list-panel__empty {
